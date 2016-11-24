@@ -1,0 +1,7 @@
+ID de Router,ID de Router Conectado,Distancia (hops),Latencia (ms.)
+1,2,1,10
+1,3,2,50
+1,4,1,120
+1,5,2,240
+1,6,1,300
+1,7,2,700
