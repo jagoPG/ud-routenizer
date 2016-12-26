@@ -92,7 +92,7 @@ UDroutenizer=function(){
       }
     }
     HIJOS = cbind(valor_router_inicial, HIJOS) # cbind(V1 = 1, HIJOS)
-    PADRESS = cbind(valor_router_inicial, PADRES)
+    PADRES = cbind(valor_router_inicial, PADRES)
     
     # PASO 5: MUTACIÓN  
     #Para cada hijo, con probabilidad PROB_MUTACION, intercambiar dos posiciones elegidas aleatoriamente
