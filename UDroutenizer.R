@@ -50,27 +50,49 @@ UDroutenizer=function(){
   PROB_CRUCE    = 0.90;
   
   # PASO 2: INICIALIZACIÓN. CREAR UNA MATRIZ LLAMADA <<POBLACIÓN>>, CON N_INDIVIDUOS FILAS Y L_INDIVIDUO COLUMNAS. 
-  POBLACION = matrix(0,N_INDIVIDUOS,L_INDIVIDUO);
+  POBLACION = matrix(0,N_INDIVIDUOS,L_INDIVIDUO+1);
   for (i in 1:N_INDIVIDUOS){
-    # Iniciar cada uno de los individuos de la población 
-    # como una permutación aleatoria
-    for (j in 1:L_INDIVIDUO){
-      POBLACION[i,j] = j;
-    }
+    # Iniciar cada uno de los individuos de la población como una permutación aleatoria
+    POBLACION[i,] = c(1,sample(c(datos_routers[-1,"ID.de.router"],0)));
   }
-  POBLACION
   
   for (g in 1:GENERACIONES){
-    # EVALUACIÓN (No Tocar)
-    FITNESS = Evaluar(POBLACION,DISTANCIAS);      
+    # EVALUACIÓN
+    FITNESS = Evaluar(POBLACION,INDICES);      
     
     # PASO 3: SELECCIÓN 
     #Seleccionar N_INDIVIDUOS padres por torneo binario
     PADRES = POBLACION;     
+    for (j in 1:N_INDIVIDUOS) {
+      padres_candidatos = sample(1:N_INDIVIDUOS, 2, replace=FALSE, prob=NULL) # El numero de muestras que cogemos son 2 de entre los N_INDIVIDUOS padres posibles.
+      if(FITNESS[padres_candidatos[1]] < FITNESS[padres_candidatos[2]]) { # Determinamos cual es aquel padre de los dos que ha sido evaluado con el valor mas bajo de la funcion FITNESS.
+        PADRES[j,] = POBLACION[padres_candidatos[1],]
+      } else {
+        PADRES[j,] = POBLACION[padres_candidatos[2],]
+      }
+    }
     
     # PASO 4: CRUCE 
     #Para cada pareja de padres, usar el operador de orden con probabilidad PROB_CRUCE para generar dos hijos
-    HIJOS = PADRES;    
+    HIJOS = PADRES[,-1];
+    valor_router_inicial = PADRES[1,1]
+    PADRES = PADRES[,-1]
+    for (i in seq(from=1, to=N_INDIVIDUOS, by=2)) { # iteramos de dos en dos, porque tenemos que coger dos padres y cruzarlos entre ellos.
+      # Vamos a cruzar parejas de padres en base a la probabilidad de cruce. Si no se da el caso, entonces, no cruzamos:
+      if (runif(1,min=0,max=1)<= PROB_CRUCE) {
+        indices = sample(2:(L_INDIVIDUO-1), 2, replace = FALSE, prob = NULL) # Seleccionamos aleatoriamente dos indices de corte, tenemos que tener cuidado con que los indices no sean ni el 1 ni el ultimo. Porque si no, no habria tres trozos.
+        indice_corte1 = min(indices)
+        indice_corte2 = max(indices)
+        HIJOS[i,] = cruce_de_orden(PADRES[i,], PADRES[i+1,], indice_corte1, indice_corte2)
+        HIJOS[i+1,] = cruce_de_orden(PADRES[i+1,], PADRES[i,], indice_corte1, indice_corte2)
+      } else {
+        # Si no se da la probabilidad de cruce, entonces, dejamos los hijos tal y como estan los padres:
+        HIJOS[i,] = PADRES[i,]
+        HIJOS[i+1,] = PADRES[i+1,]
+      }
+    }
+    HIJOS = cbind(valor_router_inicial, HIJOS) # cbind(V1 = 1, HIJOS)
+    PADRESS = cbind(valor_router_inicial, PADRES)
     
     # PASO 5: MUTACIÓN  
     #Para cada hijo, con probabilidad PROB_MUTACION, intercambiar dos posiciones elegidas aleatoriamente
@@ -95,14 +117,37 @@ UDroutenizer=function(){
   
 }
 
-Evaluar=function(POBLACION,DISTANCIAS){
+Evaluar=function(POBLACION,INDICES){
   FITNESS=matrix(0,dim(POBLACION)[1],1);
   maxj = (dim(POBLACION)[2]-1);
   for (i in 1:dim(POBLACION)[1]){
+    distancia_total = 0 
     for (j in 1:maxj){
-      FITNESS[i]=FITNESS[i]+DISTANCIAS[POBLACION[i,j],POBLACION[i,j+1]];
+      elem1 = POBLACION[i,j]
+      elem2 = POBLACION[i,j+1]
+      if (elem2 == 0) {break;}
+      dist = INDICES[elem1, elem2]
+      if (dist == 0) {distancia_total = 0; break}
+      distancia_total = distancia_total + dist
     }
-    FITNESS[i]=FITNESS[i]+DISTANCIAS[POBLACION[i,dim(POBLACION)[2]],POBLACION[i,1]];
+    FITNESS[i]=distancia_total;
   }
   FITNESS
+}
+
+cruce_de_orden = function(PADRE1, PADRE2, indice1, indice2) {
+  # Ahora cruzamos los trozos realizados del cromosoma. Situamos el trozo 3 en la primera posicion (al principio), el trozo 1 a coninuacion del que hemos colocado y finalmente el trozo 2 al final. Es al fin y al cabo, como una permutación de los trozos del cromosoma:
+  primerCruce = c(PADRE1[(indice2+1):length(PADRE1)], PADRE1[1:indice1], PADRE1[(indice1+1):indice2]) 
+  # Ahora, comprobamos si los elementos (valores) troncales (trozo 2 del padre 2!) se encuentran dentro del cromosoma que hemos cruzado. Si es asi, eliminamos esos valores de dentro del cromosoma:
+  despuesDeResta = vector() # vector vacio al que anadiremos los valores que nos interesa mantener y no descartar.
+  for (l in 1:length(primerCruce)) {
+    if (!(primerCruce[l] %in% PADRE2[(indice1+1):indice2])) {despuesDeResta = c(despuesDeResta, primerCruce[l])} # En este caso lo estamos haciendo a la inversa, en vez de eliminarlos del vector, estamos creando uno nuevo y sumando los valores que no debemos eliminar.
+  }
+  # A continuacion, concatenamos los valores del trozo 2 del padre 2 con todo aquello que haya quedado del padre1:
+  concatenacion = c(PADRE2[(indice1+1):indice2], despuesDeResta)
+  # Todavia nos falta mover un ultimo trozo del cromosoma que estamos modificando.
+  # Tenemos que mover un trozo compuesto por el mismo numero de genes que el trozo 1 del padre 2.
+  # El trozo del que hablamos esta situado en la parte final del cromosoma. Al final es llevar genes de la parte final del cromosoma hacia la parte delantera del cromosoma:
+  resultado = c(tail(concatenacion, n=indice1), concatenacion[1:(length(concatenacion)-indice1)])
+  return(resultado)
 }
