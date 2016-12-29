@@ -4,63 +4,62 @@
 
 # Establecemos el directorio de trabajo:
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) 
-# Leemos los datos con los que vamos a trabajar: por una parte "router.csv" contiene las caracterÌsticas
+# Leemos los datos con los que vamos a trabajar: por una parte "router.csv" contiene las caracter√≥sticas
 # y el identificativo de cada uno de los routers, mientras que "topologia_red.csv" contiene las relaciones
 # de cada uno de los routers con el resto de los routers.
 datos_routers = read.csv("router.csv")
 datos_topologia = read.csv("topologia_red.csv")
 
-# Definimos e implementamos nuestro algoritmo genÈtico en la siguiente funciÛn:
+# Definimos e implementamos nuestro algoritmo gen√≥tico en la siguiente funci√≥n:
 UDroutenizer=function(ROUTER_INICIO, ROUTER_DEST){
-  N = dim(datos_routers)[1]; # N˙mero de routers declarados en nuestros datos.
+  N = dim(datos_routers)[1]; # N√≥mero de routers declarados en nuestros datos.
   PORC_IMPORTANCIA_RETARDO = 0.8 # Porcentaje de importarcia/relevancia del retardo (latency)
   PORC_IMPORTANCIA_VELPROC = 0.8 # Porcentaje de importancia/relevancia de la velocidad de procesamiento
-  PORC_IMPORTANCIA_VELTRANS = 0.6 # Porcentaje de importancia/relevancia de la velocidad de transmisiÛn
-  PORC_IMPORTANCIA_BUFFER = 0.75 # Porcentaje de importancia/relevancia del tamaÒo del buffer
-  ROUTER_DEST = 7; # TO DELETE!!!!!
-  # Declaramos la funciÛn de normalizaciÛn:
+  PORC_IMPORTANCIA_VELTRANS = 0.6 # Porcentaje de importancia/relevancia de la velocidad de transmisi√≥n
+  PORC_IMPORTANCIA_BUFFER = 0.75 # Porcentaje de importancia/relevancia del tama√≥o del buffer
+
+  # Declaramos la funci√≥n de normalizaci√≥n:
   normalize = function(x) {(x-min(x))/(max(x)-min(x))}
-  # Normalizamos todos los datos que vamos a utilizar para el c·lculo del INDICE ("distancia"):
-  datos_routers[,c("Vel..TransmisiÛn..Mb.s.", "Vel..Procesamiento..Mb.s.", "Buffer")] = as.data.frame(lapply(datos_routers[,c("Vel..TransmisiÛn..Mb.s.", "Vel..Procesamiento..Mb.s.", "Buffer")], normalize))[,c("Vel..TransmisiÛn..Mb.s.", "Vel..Procesamiento..Mb.s.", "Buffer")]
+  # Normalizamos todos los datos que vamos a utilizar para el c√≥lculo del INDICE ("distancia"):
+  datos_routers[,c("Vel..Transmisi√≥n..Mb.s.", "Vel..Procesamiento..Mb.s.", "Buffer")] = as.data.frame(lapply(datos_routers[,c("Vel..Transmisi√≥n..Mb.s.", "Vel..Procesamiento..Mb.s.", "Buffer")], normalize))[,c("Vel..Transmisi√≥n..Mb.s.", "Vel..Procesamiento..Mb.s.", "Buffer")]
   datos_topologia[,c("Latencia..ms..")] = as.data.frame(lapply(datos_topologia, normalize))[, c("Latencia..ms..")]
 
   # PASO 1: Creamos una matriz de distancias que en nuestro caso contendra un valor numerico llamado "INDICE".
-  # Este Ìndice indica cu·n Ûtimo es la relacion ("distancia") entre un router y otro.
-  # Cuanto mayor sea el Ìndice, entonces, mejor valorada est· la distancia entre ambos routers.
-  # Contra menor sea el Ìndice, entonces, peor valorado estar· la distancia entre ambos routers.
+  # Este √≥ndice indica cu√≥n √≥timo es la relacion ("distancia") entre un router y otro.
+  # Cuanto mayor sea el √≥ndice, entonces, mejor valorada est√≥ la distancia entre ambos routers.
+  # Contra menor sea el √≥ndice, entonces, peor valorado estar√≥ la distancia entre ambos routers.
   INDICES = matrix(0,N,N);
   for (i in 1:dim(datos_topologia)[1]){
     current = datos_topologia[i,]
     datos_router_source = datos_routers[current$ID.de.Router,]
     datos_router_dest = datos_routers[current$ID.de.Router.Conectado,]
-    indice_calculado = (datos_router_source$Vel..TransmisiÛn..Mb.s.*PORC_IMPORTANCIA_VELTRANS) +
+    indice_calculado = (datos_router_source$Vel..Transmisi√≥n..Mb.s.*PORC_IMPORTANCIA_VELTRANS) +
                         (datos_router_source$Vel..Procesamiento..Mb.s.*PORC_IMPORTANCIA_VELPROC) +
                         (datos_router_source$Buffer*PORC_IMPORTANCIA_BUFFER) -
                         (current$Latencia..ms..*PORC_IMPORTANCIA_RETARDO)
     INDICES[current$ID.de.Router,current$ID.de.Router.Conectado] = indice_calculado;
   }
   
-  # remove(datos_routers_normalizados) # remove se utililza para liberar memoria
-  
-  # Par·metros de cara a las iteraciones de las generaciones:
+  # Par√≥metros de cara a las iteraciones de las generaciones:
   N_INDIVIDUOS  = 10;
   L_INDIVIDUO   = N;
-  GENERACIONES  = 10;
+  GENERACIONES  = 100;
   PROB_MUTACION = 0.05;
   PROB_CRUCE    = 0.90;
   
-  # PASO 2: INICIALIZACI”N. CREAR UNA MATRIZ LLAMADA <<POBLACI”N>>, CON N_INDIVIDUOS FILAS Y L_INDIVIDUO COLUMNAS. 
+  # PASO 2: INICIALIZACI√≥N. CREAR UNA MATRIZ LLAMADA <<POBLACI√≥N>>, CON N_INDIVIDUOS FILAS Y L_INDIVIDUO COLUMNAS. 
   POBLACION = matrix(0,N_INDIVIDUOS,L_INDIVIDUO);
   for (i in 1:N_INDIVIDUOS){
-    # Iniciar cada uno de los individuos de la poblaciÛn como una permutaciÛn aleatoria
-    POBLACION[i,] = c(1,sample(c(datos_routers[-1,"ID.de.router"])));
+    # Iniciar cada uno de los individuos de la poblaci√≥n como una permutaci√≥n aleatoria
+    routers_ids = datos_routers[,"ID.de.router"]
+    POBLACION[i,] = c(ROUTER_INICIO,sample(c(routers_ids[routers_ids!=ROUTER_INICIO])));
   }
   
   for (g in 1:GENERACIONES){
-    # EVALUACI”N
-    FITNESS = Evaluar(POBLACION,INDICES,ROUTER_DEST);      
+    # EVALUACI√≥N
+    FITNESS = Evaluar(POBLACION,INDICES,ROUTER_INICIO, ROUTER_DEST);      
     
-    # PASO 3: SELECCI”N 
+    # PASO 3: SELECCI√≥N 
     #Seleccionar N_INDIVIDUOS padres por torneo binario
     PADRES = POBLACION;     
     for (j in 1:N_INDIVIDUOS) {
@@ -92,7 +91,7 @@ UDroutenizer=function(ROUTER_INICIO, ROUTER_DEST){
       }
     }
     
-    # PASO 5: MUTACI”N  
+    # PASO 5: MUTACI√≥N  
     #Para cada hijo, con probabilidad PROB_MUTACION, intercambiar dos posiciones elegidas aleatoriamente
     for(j in 1:N_INDIVIDUOS) {
       # Vamos a mutar cada hijo en base a la probabilidad de mutacion. Si no se da el caso, entonces, no mutamos:
@@ -113,7 +112,7 @@ UDroutenizer=function(ROUTER_INICIO, ROUTER_DEST){
     fitness_mejor = FITNESS[indice];
     
     # MOSTRAMOS EL MEJOR INDIVIDUO HASTA EL MOMENTO (No Tocar)
-    print(paste0('Mejor Individuo GeneraciÛn: ',g))
+    print(paste0('Mejor Individuo Generaci√≥n: ',g))
     print(MEJOR)
     print(paste0('Fitness del Mejor Individuo: ',fitness_mejor))
     
@@ -121,7 +120,7 @@ UDroutenizer=function(ROUTER_INICIO, ROUTER_DEST){
     POBLACION = HIJOS;
     
     # PASO 5: ELITISMO 
-    # En caso de que el MEJOR individuo no se encuentre en la poblaciÛn, introducirlo en ella
+    # En caso de que el MEJOR individuo no se encuentre en la poblaci√≥n, introducirlo en ella
     esta = 0
     for (l in 1:N_INDIVIDUOS) {
       if (isTRUE(all.equal(MEJOR,POBLACION[l,]))) {esta = 1; break}
@@ -131,7 +130,7 @@ UDroutenizer=function(ROUTER_INICIO, ROUTER_DEST){
   
 }
 
-Evaluar=function(POBLACION,INDICES, ROUTER_DEST){
+Evaluar=function(POBLACION,INDICES, ROUTER_INICIO, ROUTER_DEST){
   FITNESS=matrix(0,dim(POBLACION)[1],1);
   maxj = (dim(POBLACION)[2]-1);
   for (i in 1:dim(POBLACION)[1]){
@@ -150,7 +149,7 @@ Evaluar=function(POBLACION,INDICES, ROUTER_DEST){
 }
 
 cruce_de_orden = function(PADRE1, PADRE2, indice1, indice2) {
-  # Ahora cruzamos los trozos realizados del cromosoma. Situamos el trozo 3 en la primera posicion (al principio), el trozo 1 a coninuacion del que hemos colocado y finalmente el trozo 2 al final. Es al fin y al cabo, como una permutaciÛn de los trozos del cromosoma:
+  # Ahora cruzamos los trozos realizados del cromosoma. Situamos el trozo 3 en la primera posicion (al principio), el trozo 1 a coninuacion del que hemos colocado y finalmente el trozo 2 al final. Es al fin y al cabo, como una permutaci√≥n de los trozos del cromosoma:
   primerCruce = c(PADRE1[(indice2+1):length(PADRE1)], PADRE1[1:indice1], PADRE1[(indice1+1):indice2]) 
   # Ahora, comprobamos si los elementos (valores) troncales (trozo 2 del padre 2!) se encuentran dentro del cromosoma que hemos cruzado. Si es asi, eliminamos esos valores de dentro del cromosoma:
   despuesDeResta = vector() # vector vacio al que anadiremos los valores que nos interesa mantener y no descartar.
@@ -165,4 +164,3 @@ cruce_de_orden = function(PADRE1, PADRE2, indice1, indice2) {
   resultado = c(tail(concatenacion, n=indice1), concatenacion[1:(length(concatenacion)-indice1)])
   return(resultado)
 }
-
