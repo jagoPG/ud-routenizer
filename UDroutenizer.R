@@ -11,13 +11,13 @@ datos_routers = read.csv("router.csv")
 datos_topologia = read.csv("topologia_red.csv")
 
 # Definimos e implementamos nuestro algoritmo genético en la siguiente función:
-UDroutenizer=function(){
+UDroutenizer=function(ROUTER_INICIO, ROUTER_DEST){
   N = dim(datos_routers)[1]; # Número de routers declarados en nuestros datos.
   PORC_IMPORTANCIA_RETARDO = 0.8 # Porcentaje de importarcia/relevancia del retardo (latency)
   PORC_IMPORTANCIA_VELPROC = 0.8 # Porcentaje de importancia/relevancia de la velocidad de procesamiento
   PORC_IMPORTANCIA_VELTRANS = 0.6 # Porcentaje de importancia/relevancia de la velocidad de transmisión
   PORC_IMPORTANCIA_BUFFER = 0.75 # Porcentaje de importancia/relevancia del tamaño del buffer
-  
+  ROUTER_DEST = 7; # TO DELETE!!!!!
   # Declaramos la función de normalización:
   normalize = function(x) {(x-min(x))/(max(x)-min(x))}
   # Normalizamos todos los datos que vamos a utilizar para el cálculo del INDICE ("distancia"):
@@ -43,22 +43,22 @@ UDroutenizer=function(){
   # remove(datos_routers_normalizados) # remove se utililza para liberar memoria
   
   # Parámetros de cara a las iteraciones de las generaciones:
-  N_INDIVIDUOS  = 50;
+  N_INDIVIDUOS  = 10;
   L_INDIVIDUO   = N;
-  GENERACIONES  = 2000;
+  GENERACIONES  = 10;
   PROB_MUTACION = 0.05;
   PROB_CRUCE    = 0.90;
   
   # PASO 2: INICIALIZACIÓN. CREAR UNA MATRIZ LLAMADA <<POBLACIÓN>>, CON N_INDIVIDUOS FILAS Y L_INDIVIDUO COLUMNAS. 
-  POBLACION = matrix(0,N_INDIVIDUOS,L_INDIVIDUO+1);
+  POBLACION = matrix(0,N_INDIVIDUOS,L_INDIVIDUO);
   for (i in 1:N_INDIVIDUOS){
     # Iniciar cada uno de los individuos de la población como una permutación aleatoria
-    POBLACION[i,] = c(1,sample(c(datos_routers[-1,"ID.de.router"],0)));
+    POBLACION[i,] = c(1,sample(c(datos_routers[-1,"ID.de.router"])));
   }
   
   for (g in 1:GENERACIONES){
     # EVALUACIÓN
-    FITNESS = Evaluar(POBLACION,INDICES);      
+    FITNESS = Evaluar(POBLACION,INDICES,ROUTER_DEST);      
     
     # PASO 3: SELECCIÓN 
     #Seleccionar N_INDIVIDUOS padres por torneo binario
@@ -80,7 +80,7 @@ UDroutenizer=function(){
     for (i in seq(from=1, to=N_INDIVIDUOS, by=2)) { # iteramos de dos en dos, porque tenemos que coger dos padres y cruzarlos entre ellos.
       # Vamos a cruzar parejas de padres en base a la probabilidad de cruce. Si no se da el caso, entonces, no cruzamos:
       if (runif(1,min=0,max=1)<= PROB_CRUCE) {
-        indices = sample(2:(L_INDIVIDUO-1), 2, replace = FALSE, prob = NULL) # Seleccionamos aleatoriamente dos indices de corte, tenemos que tener cuidado con que los indices no sean ni el 1 ni el ultimo. Porque si no, no habria tres trozos.
+        indices = sample(2:(L_INDIVIDUO-2), 2, replace = FALSE, prob = NULL) # Seleccionamos aleatoriamente dos indices de corte, tenemos que tener cuidado con que los indices no sean ni el 1 ni el ultimo. Porque si no, no habria tres trozos.
         indice_corte1 = min(indices)
         indice_corte2 = max(indices)
         HIJOS[i,] = cruce_de_orden(PADRES[i,], PADRES[i+1,], indice_corte1, indice_corte2)
@@ -91,20 +91,29 @@ UDroutenizer=function(){
         HIJOS[i+1,] = PADRES[i+1,]
       }
     }
-    HIJOS = cbind(valor_router_inicial, HIJOS) # cbind(V1 = 1, HIJOS)
-    PADRES = cbind(valor_router_inicial, PADRES)
     
     # PASO 5: MUTACIÓN  
     #Para cada hijo, con probabilidad PROB_MUTACION, intercambiar dos posiciones elegidas aleatoriamente
+    for(j in 1:N_INDIVIDUOS) {
+      # Vamos a mutar cada hijo en base a la probabilidad de mutacion. Si no se da el caso, entonces, no mutamos:
+      if (runif(1,min=0,max=1) <= PROB_MUTACION) {
+        indices = sample(1:(L_INDIVIDUO-1), 2, replace=FALSE, prob=NULL) # Obtenemos dos indices (posiciones) los cuales vamos a usar para intercambiar sus respectivos valores.
+        aux = HIJOS[j,indices[1]]
+        HIJOS[j,indices[1]] = HIJOS[j,indices[2]]
+        HIJOS[j,indices[2]] = aux
+      } # Si no se da la probabilidad de mutacion, entonces, dejamos el hijo tal y como estaba
+    }
     
+    HIJOS = cbind(valor_router_inicial, HIJOS) # cbind(V1 = 1, HIJOS)
+    PADRES = cbind(valor_router_inicial, PADRES)
     
     # ACTUALIZAMOS EL MEJOR INDIVIDUO (No Tocar)
-    indice = order(FITNESS)[1];
+    indice = order(FITNESS, decreasing = TRUE)[1];
     MEJOR = POBLACION[indice,];
     fitness_mejor = FITNESS[indice];
     
     # MOSTRAMOS EL MEJOR INDIVIDUO HASTA EL MOMENTO (No Tocar)
-    print(paste0('Mejor Individuo Generaci?n: ',g))
+    print(paste0('Mejor Individuo Generación: ',g))
     print(MEJOR)
     print(paste0('Fitness del Mejor Individuo: ',fitness_mejor))
     
@@ -113,11 +122,16 @@ UDroutenizer=function(){
     
     # PASO 5: ELITISMO 
     # En caso de que el MEJOR individuo no se encuentre en la población, introducirlo en ella
+    esta = 0
+    for (l in 1:N_INDIVIDUOS) {
+      if (isTRUE(all.equal(MEJOR,POBLACION[l,]))) {esta = 1; break}
+    }
+    if (!esta) {POBLACION[N_INDIVIDUOS,] = MEJOR}
   }
   
 }
 
-Evaluar=function(POBLACION,INDICES){
+Evaluar=function(POBLACION,INDICES, ROUTER_DEST){
   FITNESS=matrix(0,dim(POBLACION)[1],1);
   maxj = (dim(POBLACION)[2]-1);
   for (i in 1:dim(POBLACION)[1]){
@@ -125,7 +139,7 @@ Evaluar=function(POBLACION,INDICES){
     for (j in 1:maxj){
       elem1 = POBLACION[i,j]
       elem2 = POBLACION[i,j+1]
-      if (elem2 == 0) {break;}
+      if (elem1 == ROUTER_DEST) {break;}
       dist = INDICES[elem1, elem2]
       if (dist == 0) {distancia_total = 0; break}
       distancia_total = distancia_total + dist
@@ -151,3 +165,4 @@ cruce_de_orden = function(PADRE1, PADRE2, indice1, indice2) {
   resultado = c(tail(concatenacion, n=indice1), concatenacion[1:(length(concatenacion)-indice1)])
   return(resultado)
 }
+
