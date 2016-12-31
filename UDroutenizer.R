@@ -57,7 +57,7 @@ UDroutenizer=function(ROUTER_INICIO, ROUTER_DEST){
   
   for (g in 1:GENERACIONES){
     # Evaluación de fitness
-    FITNESS = Evaluar(POBLACION,INDICES,ROUTER_INICIO, ROUTER_DEST);      
+    FITNESS = Evaluar(POBLACION,INDICES,ROUTER_DEST);      
     
     # PASO 3: Selección. Seleccionar N_INDIVIDUOS padres por torneo binario.
     PADRES = POBLACION;     
@@ -126,7 +126,7 @@ UDroutenizer=function(ROUTER_INICIO, ROUTER_DEST){
 }
 
 # Implementacion de la funcion FITNESS:
-Evaluar=function(POBLACION,INDICES, ROUTER_INICIO, ROUTER_DEST){
+Evaluar=function(POBLACION,INDICES,ROUTER_DEST){
   FITNESS=matrix(0,dim(POBLACION)[1],1);
   maxj = (dim(POBLACION)[2]-1);
   for (i in 1:dim(POBLACION)[1]){
