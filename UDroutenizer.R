@@ -7,8 +7,8 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 # Leemos los datos con los que vamos a trabajar: por una parte "router.csv" contiene las características
 # y el identificativo de cada uno de los routers, mientras que "topologia_red.csv" contiene las relaciones
 # de cada uno de los routers con el resto de los routers.
-datos_routers = read.csv("router.csv")
-datos_topologia = read.csv("topologia_red.csv")
+datos_routers = read.csv("1/router.csv")
+datos_topologia = read.csv("1/topologia_red.csv")
 
 # Definimos e implementamos nuestro algoritmo genético en la siguiente función:
 UDroutenizer=function(ROUTER_INICIO, ROUTER_DEST){
